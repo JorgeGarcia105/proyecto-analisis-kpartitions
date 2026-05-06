@@ -24,6 +24,7 @@ pip install uv
 - `GeoMIP/src/Method2_Dynamic_Programming_Reformulation/`: procesamiento por lotes desde Excel.
 - `GeoMIP/data/samples/`: datasets TPM `N*.csv` usados por Method1/Method2.
 - `GeoMIP/results/`: archivos Excel de entrada/salida para Method1/Method2.
+- `DocsNuevos/`: mejoras y scripts auxiliares (k-particiones, benchmark, tests).
 
 ## 1) Ejecutar QNodes
 
@@ -85,3 +86,33 @@ uv run exec.py
 ### Salida por defecto
 
 - Excel salida: `GeoMIP/results/resultados_Geometric.xlsx`
+
+## 4) k-particiones y benchmark (DocsNuevos)
+
+Se integro una extension de GeometricSIA para k-particiones y un benchmark
+contra PyPhi.
+
+Archivos clave:
+
+- `GeoMIP/src/Method2_Dynamic_Programming_Reformulation/src/controllers/strategies/geometric_k.py`
+- `GeoMIP/src/Method2_Dynamic_Programming_Reformulation/benchmark.py`
+- `GeoMIP/src/Method2_Dynamic_Programming_Reformulation/tests/test_geometric_k.py`
+
+### Ejecutar benchmark
+
+Desde `GeoMIP/src/Method2_Dynamic_Programming_Reformulation/`:
+
+```bash
+uv run python benchmark.py --excel ../../results/Pruebas_Metodo2.xlsx --k 2
+```
+
+### Ejecutar tests
+
+```bash
+uv run pytest tests/test_geometric_k.py -v --tb=short
+```
+
+### Excel de ejemplo
+
+- Archivo: `DocsNuevos/Ejemplos.xlsx`
+- Se usa como referencia de formato para el benchmark.
