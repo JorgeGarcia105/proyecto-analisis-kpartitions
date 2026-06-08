@@ -66,6 +66,7 @@
 #     print(sia_uno)
 from src.controllers.manager import Manager
 from src.controllers.strategies.geometric import GeometricSIA
+from src.controllers.strategies.geometric_k import KPartitionGeometricSIA
 from src.controllers.strategies.q_nodes import QNodes
 # Optional import: this project often runs only geometric strategy.
 try:
@@ -73,6 +74,7 @@ try:
 except Exception:
     Phi = None
 import multiprocessing
+import time
 import numpy as np
 import pandas as pd
 import os
@@ -83,8 +85,8 @@ from pathlib import Path
 METHOD2_ROOT = Path(__file__).resolve().parents[1]
 GEOMIP_ROOT = Path(__file__).resolve().parents[3]
 
-def convertir_a_binario(texto, n_bits=20):
-    posiciones = "ABCDEFGHIJKLMNOPQRST"[:n_bits]
+def convertir_a_binario(texto, n_bits=10):
+    posiciones = "ABCDEFGHIJ"[:n_bits]
     binario = ["0"] * n_bits
     for letra in texto:
         if letra in posiciones:
@@ -157,7 +159,7 @@ def ejecutar_desde_excel(
     estado_inicio: str | None = None,
     condiciones: str | None = None,
 ):
-    df = pd.read_excel(ruta_excel, sheet_name=8, usecols="B", skiprows=3, names=["Subsistema"]) #! here
+    df = pd.read_excel(ruta_excel, sheet_name=6, usecols="A", skiprows=2, names=["Subsistema"]) #! here
     filas = df["Subsistema"].dropna().tolist()
     filas = filas[inicio:inicio + cantidad]
     resultados = []
@@ -209,7 +211,91 @@ def ejecutar_desde_excel(
     df_resultados.to_excel(ruta_salida, index=False)
     print(f"Resultados guardados en {ruta_salida}")
 
-def iniciar():
+def _ejecutar_k3_worker(config_sistema, condiciones, alcance, mecanismo, tpm, resultado_queue):
+    try:
+        analizador = KPartitionGeometricSIA(config_sistema, k=3)
+        t0 = time.perf_counter()
+        sol = analizador.aplicar_estrategia(condiciones, alcance, mecanismo, tpm)
+        t_total = time.perf_counter() - t0
+        resultado_queue.put({
+            "particion": str(sol.particion),
+            "perdida": str(sol.perdida).replace(".", ","),
+            "tiempo": str(t_total).replace(".", ","),
+        })
+    except Exception as e:
+        resultado_queue.put({"particion": None, "perdida": None, "tiempo": None, "error": str(e)})
+
+
+def ejecutar_desde_excel_k3(
+    ruta_excel: Path,
+    ruta_salida: Path,
+    inicio: int = 0,
+    cantidad: int = 50,
+    estado_inicio: str | None = None,
+    condiciones: str | None = None,
+    timeout: int = 3600,
+):
+    """
+    Ejecuta k=3 particiones sobre los subsistemas del Excel y guarda
+    los tiempos de ejecucion y resultados en un nuevo Excel.
+    """
+    df = pd.read_excel(ruta_excel, sheet_name=6, usecols="A", skiprows=2, names=["Subsistema"])
+    filas = df["Subsistema"].dropna().tolist()
+    filas = filas[inicio:inicio + cantidad]
+
+    estado_inicio = estado_inicio or inferir_estado_inicial()
+    condiciones = condiciones or ("1" * len(estado_inicio))
+    tpm_path = resolver_tpm_path(estado_inicio)
+    tpm = np.genfromtxt(tpm_path, delimiter=",")
+
+    resultados = []
+    for i, fila in enumerate(filas, start=inicio + 1):
+        partes = fila.split("|")
+        if len(partes) != 2:
+            continue
+
+        alcance = convertir_a_binario(partes[0][:len(partes[0]) - 3], n_bits=len(estado_inicio))
+        mecanismo = convertir_a_binario(partes[1][:len(partes[1]) - 1], n_bits=len(estado_inicio))
+        print(f"[k=3] Iteracion {i} - Alcance: {alcance}, Mecanismo: {mecanismo}")
+
+        config_sistema = Manager(estado_inicial=estado_inicio)
+        resultado_queue = multiprocessing.Queue()
+        proceso = multiprocessing.Process(
+            target=_ejecutar_k3_worker,
+            args=(config_sistema, condiciones, alcance, mecanismo, tpm, resultado_queue),
+        )
+        proceso.start()
+        proceso.join(timeout=timeout)
+
+        if proceso.is_alive():
+            print(f"[k=3] Iteracion {i} - Timeout, terminando proceso...")
+            proceso.terminate()
+            proceso.join()
+            resultado = {"perdida": None, "tiempo": None, "particion": None}
+        else:
+            resultado = (
+                resultado_queue.get()
+                if not resultado_queue.empty()
+                else {"perdida": None, "tiempo": None, "particion": None}
+            )
+
+        resultados.append({
+            "Iteracion": i,
+            "Alcance": alcance,
+            "Mecanismo": mecanismo,
+            "k": 3,
+            "Particion": resultado["particion"],
+            "Perdida": resultado["perdida"],
+            "Tiempo de ejecucion (s)": resultado["tiempo"],
+        })
+
+    df_resultados = pd.DataFrame(resultados)
+    ruta_salida.parent.mkdir(parents=True, exist_ok=True)
+    df_resultados.to_excel(ruta_salida, index=False)
+    print(f"[k=3] Resultados guardados en {ruta_salida}")
+
+
+def iniciar(k: int = 2):
     ruta_entrada = Path(
         os.getenv(
             "GEOMIP_INPUT_XLSX",
@@ -222,4 +308,8 @@ def iniciar():
             str(GEOMIP_ROOT / "results" / "resultados_Geometric.xlsx"),
         )
     )
-    ejecutar_desde_excel(ruta_entrada, ruta_salida)
+    if k == 3:
+        ruta_salida_k3 = ruta_salida.with_name("resultados_Geometric_k3.xlsx")
+        ejecutar_desde_excel_k3(ruta_entrada, ruta_salida_k3)
+    else:
+        ejecutar_desde_excel(ruta_entrada, ruta_salida)

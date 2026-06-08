@@ -29,3 +29,8 @@ QNODES_ANALYSIS_TAG: str = f"{QNODES_LABEL}_analysis"
 GEOMETRIC_LABEL: str = "Geometric"
 GEOMETRIC_STRAREGY_TAG: str = f"{GEOMETRIC_LABEL}_strategy"
 GEOMETRIC_ANALYSIS_TAG: str = f"{GEOMETRIC_LABEL}_analysis"
+
+# Geometric-K (k-particiones k in {3,4,5})
+GEOMETRIC_K_LABEL: str = "Geometric-K"
+GEOMETRIC_K_STRAREGY_TAG: str = f"{GEOMETRIC_K_LABEL}_strategy"
+GEOMETRIC_K_ANALYSIS_TAG: str = f"{GEOMETRIC_K_LABEL}_analysis"

@@ -1,5 +1,6 @@
 from src.funcs.base import ABECEDARY, LOWER_ABECEDARY
 from src.constants.base import VOID_STR
+from typing import List, Tuple
 
 
 def fmt_biparticion(
@@ -51,3 +52,25 @@ def fmt_parte_q(parte: list[tuple[int, int]], to_sort: bool = True) -> tuple[str
     width = max(len(str_purv), len(str_mech)) + 2
 
     return f"|{str_purv:^{width}}|", f"|{str_mech:^{width}}|"
+
+
+def fmt_kparte_q(
+    partes: List[List[Tuple[int, int]]],
+    to_sort: bool = True,
+) -> str:
+    """
+    Formatea una k-particion (k >= 2) como tabla de dos filas.
+    Cada parte es una lista de (tiempo, nodo) donde tiempo=1 es futuro
+    (mayuscula) y tiempo=0 es presente (minuscula).
+
+    Ejemplo para k=3:
+        | A,C | B | D,E |
+        | a,c | b | d,e |
+    """
+    tops = []
+    bottoms = []
+    for parte in partes:
+        top, bottom = fmt_parte_q(list(parte), to_sort)
+        tops.append(top)
+        bottoms.append(bottom)
+    return "".join(tops) + "\n" + "".join(bottoms)

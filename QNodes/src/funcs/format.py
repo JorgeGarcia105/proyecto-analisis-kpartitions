@@ -1,3 +1,4 @@
+import numpy as np
 from src.funcs.iit import ABECEDARY, LOWER_ABECEDARY
 from src.constants.base import BASE_TWO, COLON_DELIM, VOID_STR
 
@@ -49,10 +50,22 @@ def fmt_biparticion_q(
 
     return f"{top_prim}{top_dual}\n{bottom_prim}{bottom_dual}\n"
 
+# Agregar función auxiliar para aplanar listas anidadas de tuplas (time, idx) # ABCDEFGHIJKLMNO
+def _aplanar(nodos) -> list[tuple[int, int]]:
+    """Aplana recursivamente listas anidadas de tuplas (time, idx)."""
+    result = []
+    for item in nodos:
+        if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], (int, np.integer)):
+            result.append(item)
+        else:
+            result.extend(_aplanar(item))
+    return result
+
 
 def fmt_parte_q(
     parte: list[tuple[int, int]], a_ordenar: bool = True
 ) -> tuple[str, str]:
+    parte = _aplanar(parte)
     if a_ordenar:
         # Ordenar por índice #
         parte.sort(key=lambda x: x[1])
