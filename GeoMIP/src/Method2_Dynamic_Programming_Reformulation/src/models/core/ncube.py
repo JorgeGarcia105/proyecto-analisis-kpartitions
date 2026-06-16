@@ -3,6 +3,9 @@ from numpy.typing import NDArray
 import numpy as np
 
 
+_SMALL_ARRAY_THRESHOLD = 25
+
+
 @dataclass(frozen=True)
 class NCube:
     """
@@ -130,17 +133,25 @@ class NCube:
             Se han agrupado los valores del n-cubo por promedio, dejando los remanentes en la dimension 0.
         """
 
-        marginable_axis = np.intersect1d(ejes, self.dims)
+        if ejes.size <= _SMALL_ARRAY_THRESHOLD and self.dims.size <= _SMALL_ARRAY_THRESHOLD:
+            dims_set = {int(dim) for dim in self.dims}
+            marginable_axis = np.array(
+                [axis for axis in ejes if int(axis) in dims_set],
+                dtype=ejes.dtype,
+            )
+        else:
+            marginable_axis = np.intersect1d(ejes, self.dims)
         if not marginable_axis.size:
             return self
         numero_dims = self.dims.size - 1
+        marginable_set = {int(axis) for axis in marginable_axis}
         ejes_locales = tuple(
             numero_dims - dim_idx
             for dim_idx, axis in enumerate(self.dims)
-            if axis in marginable_axis
+            if int(axis) in marginable_set
         )
         new_dims = np.array(
-            [d for d in self.dims if d not in marginable_axis],
+            [d for d in self.dims if int(d) not in marginable_set],
             dtype=np.int8,
         )
         return NCube(

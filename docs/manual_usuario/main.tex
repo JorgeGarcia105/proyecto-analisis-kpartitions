@@ -1,0 +1,451 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{array}
+\usepackage{tcolorbox}
+\usepackage{graphicx}
+
+\geometry{margin=2.5cm}
+
+\definecolor{primary}{RGB}{31,73,125}
+\definecolor{secondary}{RGB}{68,114,196}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{warningbg}{RGB}{255,243,205}
+\definecolor{successbg}{RGB}{212,237,218}
+\definecolor{tipbg}{RGB}{214,234,248}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{secondary},
+    breaklines=true,
+    showstringspaces=false,
+    language=bash,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{primary}{\textbf{Manual de Usuario}}}
+\fancyhead[R]{\textcolor{primary}{GeoMIP — k-Particiones}}
+\fancyfoot[C]{\thepage}
+\fancyfoot[L]{\small Universidad de Caldas}
+\fancyfoot[R]{\small 2026}
+
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{\thesection.\quad}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{}{0em}{\thesubsection.\quad}
+\titleformat{\subsubsection}{\normalsize\bfseries}{}{0em}{\thesubsubsection.\quad}
+
+\hypersetup{colorlinks=true, linkcolor=primary, urlcolor=secondary}
+
+\tcbuselibrary{skins}
+\newtcolorbox{notebox}[1][]{colback=warningbg,colframe=orange!70!black,
+    title={\textbf{Importante}},fonttitle=\small,#1}
+\newtcolorbox{tipbox}[1][]{colback=tipbg,colframe=blue!60!black,
+    title={\textbf{Consejo}},fonttitle=\small,#1}
+\newtcolorbox{successbox}[1][]{colback=successbg,colframe=green!50!black,
+    title={\textbf{Resultado esperado}},fonttitle=\small,#1}
+
+\begin{document}
+
+% ─────────────────────────── PORTADA ───────────────────────────
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    {\Huge\bfseries\color{primary} Manual de Usuario\\[0.5em]
+    \Large Sistema GeoMIP\\[0.3em]
+    \large Algoritmo k-MIP Geométrico para k-Particiones}
+    \vspace{1.5cm}
+
+    \rule{\linewidth}{2pt}
+    \vspace{0.5cm}
+
+    {\large\textbf{Proyecto de Análisis y Diseño de Algoritmos}}\\[0.3em]
+    {\large Ingeniería en Sistemas y Computación}\\[0.3em]
+    {\large Facultad de Ingeniería — Universidad de Caldas}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.8cm}
+
+    {\large\textbf{Autores:}}\\[0.5em]
+    {\large Jorge Ivan Garcia Torres}\\[0.3em]
+    {\large Camilo Botero Merchor}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.5cm}
+    {\large Semestre 2026-1}
+
+    \vfill
+    {\small\color{gray} proyecto-analisis-kpartitions / GeoMIP}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────── 1. INTRODUCCIÓN ───────────────────────────
+\section{Introducción}
+
+Este manual describe paso a paso cómo usar el sistema GeoMIP para llenar el Excel del profesor con los resultados del algoritmo k-MIP Geométrico y generar el reporte de benchmark comparativo.
+
+\textbf{¿Qué hace el sistema?}
+\begin{enumerate}
+    \item Lee 249 casos de prueba del Excel del profesor (sistemas de 10 a 25 nodos).
+    \item Para cada caso, ejecuta el algoritmo geométrico que encuentra la partición de $k$ subconjuntos con menor pérdida de información integrada ($\Phi$).
+    \item Escribe la partición encontrada, la pérdida $\Phi$ y el tiempo de ejecución en las celdas correspondientes del Excel.
+    \item Genera un reporte comparando nuestros resultados con los de QNodes (referencia del profesor).
+\end{enumerate}
+
+\textbf{Scripts disponibles:}
+\begin{longtable}{lp{9cm}}
+    \toprule
+    Script & Descripción \\
+    \midrule
+    \endhead
+    \texttt{generar\_tpms.py}     & Genera los archivos de datos (TPM) necesarios. Solo se corre una vez. \\
+    \texttt{fill\_excel\_runner.py} & Runner principal. Lee el Excel, corre el algoritmo y escribe resultados. \\
+    \texttt{benchmark\_mejorado.py} & Calcula métricas comparativas una vez llenado el Excel. \\
+    \bottomrule
+\end{longtable}
+
+% ─────────────────────────── 2. PUESTA EN MARCHA ───────────────────────────
+\section{Puesta en Marcha}
+
+\subsection{Paso 1 — Activar el entorno virtual}
+
+Antes de cualquier comando, activar el entorno virtual:
+
+\begin{lstlisting}
+# Windows (Git Bash)
+cd ~/OneDrive/Desktop/Uni/9_Semestre/Analisis/proyecto-analisis-kpartitions
+source .venv/Scripts/activate
+\end{lstlisting}
+
+Cuando el entorno está activo, el prompt cambia a \texttt{(.venv)}.
+
+Luego navegar al directorio de trabajo:
+\begin{lstlisting}
+cd GeoMIP/src/Method2_Dynamic_Programming_Reformulation
+\end{lstlisting}
+
+\subsection{Paso 2 — Generar los archivos de datos (solo la primera vez)}
+
+\begin{notebox}
+Este paso solo es necesario si los archivos \texttt{N20A.csv}, \texttt{N22A.csv} o \texttt{N25A.csv} no existen en la carpeta \texttt{GeoMIP/data/samples/}.
+\end{notebox}
+
+Verificar qué archivos existen:
+\begin{lstlisting}
+ls ../../../GeoMIP/data/samples/
+\end{lstlisting}
+
+Generar los faltantes (ejemplo: solo N20A y N22A si N25A es muy grande):
+\begin{lstlisting}
+python generar_tpms.py --solo 20 22
+\end{lstlisting}
+
+Para generar todos (requiere $\sim$4 GB de RAM y varios minutos para N25A):
+\begin{lstlisting}
+python generar_tpms.py
+\end{lstlisting}
+
+\begin{successbox}
+Salida esperada para N10A (ya existente):
+\begin{verbatim}
+  Generando N10A.csv | 1,024 estados x 10 nodos | <1 KB
+     Matriz generada en 0.00s -> guardando...
+     Guardado en 0.00s
+\end{verbatim}
+\end{successbox}
+
+% ─────────────────────────── 3. LLENAR EL EXCEL ───────────────────────────
+\section{Llenar el Excel del Profesor}
+
+\subsection{Comando básico}
+
+Correr para todos los valores de k (2, 3, 4, 5) sobre los 249 casos:
+
+\begin{lstlisting}
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx"
+\end{lstlisting}
+
+\begin{notebox}
+Este comando puede tardar varias horas para casos de N=20--25. Se recomienda empezar con pruebas parciales (ver sección 3.2).
+\end{notebox}
+
+\subsection{Prueba rápida — 5 casos por hoja}
+
+Para verificar que todo funciona correctamente antes de la ejecución completa:
+
+\begin{lstlisting}
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 \
+  --limite-por-hoja 5
+\end{lstlisting}
+
+Esto ejecuta solo los primeros 5 casos de cada hoja (25 casos en total) usando únicamente $k=2$.
+
+\subsection{Opciones disponibles}
+
+\begin{longtable}{lll}
+    \toprule
+    Opción & Valor por defecto & Descripción \\
+    \midrule
+    \endhead
+    \texttt{--excel} & (obligatorio) & Ruta al Excel del profesor \\
+    \texttt{--k} & 2 3 4 5 & Valores de k a calcular \\
+    \texttt{--limite} & ninguno & Límite total de casos \\
+    \texttt{--limite-por-hoja} & ninguno & Límite de casos por hoja \\
+    \texttt{--timeout} & 300 & Segundos máximos por caso \\
+    \texttt{--usar-qnodes} & desactivado & Activa QNodes (experimental) \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Ejemplos de uso}
+
+\textbf{Solo k=2 y k=3:}
+\begin{lstlisting}
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 3
+\end{lstlisting}
+
+\textbf{Con timeout reducido (60 segundos por caso):}
+\begin{lstlisting}
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 \
+  --timeout 60
+\end{lstlisting}
+
+\textbf{Solo los primeros 10 casos totales:}
+\begin{lstlisting}
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 \
+  --limite 10
+\end{lstlisting}
+
+\subsection{Interpretar la salida en consola}
+
+Durante la ejecución, cada caso muestra una línea como esta:
+
+\begin{lstlisting}[language={}]
+[3/25] 10A-Elementos | fila=8 | condicion=1111111111 |
+       alcance=1111111111 | mecanismo=0111111111
+CRITICAL: k-MIP geometrico iniciando (k=2).
+CRITICAL: Candidatos generados: 13
+  Geometric | perdida=0.000000 | tiempo=0.174991s
+\end{lstlisting}
+
+\begin{longtable}{lp{9cm}}
+    \toprule
+    Elemento & Significado \\
+    \midrule
+    \endhead
+    \texttt{[3/25]}         & Caso 3 de 25 totales \\
+    \texttt{10A-Elementos}  & Hoja del Excel \\
+    \texttt{fila=8}         & Fila del Excel donde se escribirá el resultado \\
+    \texttt{condicion=...}  & Cadena binaria de condición (ya convertida de letras) \\
+    \texttt{Candidatos: 13} & Número de particiones candidatas evaluadas \\
+    \texttt{perdida=0.0}    & $\Phi = 0$: el sistema puede particionarse sin pérdida \\
+    \texttt{tiempo=0.17s}   & Tiempo de ejecución del caso \\
+    \checkmark \texttt{Geometric} & El caso se resolvió exitosamente \\
+    $\times$ \texttt{Geometric} & El caso falló o alcanzó el timeout \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Resumen final}
+
+Al terminar cada k, se muestra un resumen:
+
+\begin{lstlisting}[language={}]
+============================================================
+QNodes completados    : 0/25
+Geometric completados : 25/25
+Fallos registrados    : 0
+============================================================
+\end{lstlisting}
+
+\begin{tipbox}
+Si hay fallos por timeout, se pueden relanzar con \texttt{--timeout} mayor o usar \texttt{--limite-por-hoja} para identificar qué hojas son lentas.
+\end{tipbox}
+
+% ─────────────────────────── 4. GENERAR EL BENCHMARK ───────────────────────────
+\section{Generar el Reporte de Benchmark}
+
+Una vez llenado el Excel (o al menos parcialmente), se puede generar el reporte de comparación:
+
+\begin{lstlisting}
+python benchmark_mejorado.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx"
+\end{lstlisting}
+
+Esto crea el archivo \texttt{benchmark\_resultado.xlsx} en el directorio actual con dos hojas:
+\begin{itemize}
+    \item \textbf{Detalle:} una fila por caso con todas las métricas.
+    \item \textbf{Resumen\_por\_hoja:} métricas agregadas por hoja y valor de k.
+\end{itemize}
+
+\subsection{Opciones del benchmark}
+
+\begin{lstlisting}
+python benchmark_mejorado.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 3 \
+  --salida "mi_reporte.xlsx"
+\end{lstlisting}
+
+\begin{longtable}{lll}
+    \toprule
+    Opción & Valor por defecto & Descripción \\
+    \midrule
+    \endhead
+    \texttt{--excel}  & (obligatorio)              & Excel ya llenado por el runner \\
+    \texttt{--k}      & 2 3 4 5                    & k(s) a evaluar \\
+    \texttt{--salida} & benchmark\_resultado.xlsx  & Archivo de salida con métricas \\
+    \texttt{--limite} & ninguno                    & Limitar casos para prueba \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Interpretar la salida del benchmark}
+
+\begin{lstlisting}[language={}]
+================================================================
+  BENCHMARK - RESUMEN (Geometric vs QNodes referencia)
+================================================================
+ [10A-Elementos] k=2 | casos=49 | acierto=95.9% |
+   err_rel=0.0001 | jaccard=0.0023 | speedup=42.3x | Excelente
+ [15B-Elementos] k=2 | casos=50 | acierto=88.0% |
+   err_rel=0.0043 | jaccard=0.0410 | speedup=18.7x | Bueno
+================================================================
+\end{lstlisting}
+
+\begin{longtable}{lp{9cm}}
+    \toprule
+    Indicador & Interpretación \\
+    \midrule
+    \endhead
+    🟢 Excelente & Acierto $>90\%$, error $<1\%$, Jaccard $<0.1$ \\
+    🟡 Bueno     & Acierto $>80\%$, error $<5\%$, Jaccard $<0.2$ \\
+    🟠 Aceptable & Acierto $>70\%$, error $<10\%$, Jaccard $<0.3$ \\
+    🔴 Insuficiente & No alcanza los umbrales anteriores \\
+    Speedup & Cuántas veces más rápido es Geometric vs QNodes \\
+    \bottomrule
+\end{longtable}
+
+% ─────────────────────────── 5. FLUJO COMPLETO ───────────────────────────
+\section{Flujo de Trabajo Completo}
+
+A continuación se muestra el flujo recomendado de principio a fin:
+
+\begin{lstlisting}
+# 0. Activar entorno y navegar
+source .venv/Scripts/activate
+cd GeoMIP/src/Method2_Dynamic_Programming_Reformulation
+
+# 1. Generar TPMs faltantes (solo primera vez)
+python generar_tpms.py --solo 20 22 25
+
+# 2. Prueba rapida: 5 casos por hoja, solo k=2
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --k 2 --limite-por-hoja 5
+
+# 3. Si la prueba funciona, correr completo
+python fill_excel_runner.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx"
+
+# 4. Generar reporte comparativo
+python benchmark_mejorado.py \
+  --excel "../../../DocsNuevos/DatosPruebas2026_1.xlsx" \
+  --salida benchmark_resultado.xlsx
+\end{lstlisting}
+
+% ─────────────────────────── 6. PROBLEMAS FRECUENTES ───────────────────────────
+\section{Solución de Problemas Frecuentes}
+
+\begin{longtable}{p{5cm} p{8cm}}
+    \toprule
+    Problema & Solución \\
+    \midrule
+    \endhead
+    \texttt{error: unrecognized arguments: --limite-por-hoja} &
+    El archivo \texttt{fill\_excel\_runner.py} no está actualizado. Reemplazarlo con la versión más reciente. \\
+    \addlinespace
+    \texttt{FileNotFoundError: N20A.csv} &
+    Ejecutar \texttt{python generar\_tpms.py --solo 20} para generarlo. \\
+    \addlinespace
+    \texttt{KeyError: Worksheet 25A-Elementos} &
+    Error por espacio en el nombre de la hoja. Actualizar \texttt{fill\_excel\_runner.py}. \\
+    \addlinespace
+    Ejecución muy lenta en N=15+ &
+    Usar \texttt{--timeout 60} para limitar a 1 minuto por caso. Los casos que superen el límite se marcan como fallo pero no bloquean los siguientes. \\
+    \addlinespace
+    El Excel no se actualiza &
+    Verificar que el archivo no esté abierto en Excel. Cerrarlo antes de correr el runner. \\
+    \addlinespace
+    \texttt{(.venv)} no aparece en el prompt &
+    El entorno virtual no está activo. Ejecutar \texttt{source .venv/Scripts/activate} desde la raíz del proyecto. \\
+    \addlinespace
+    Pérdida = 0 en todos los casos &
+    Es el resultado correcto para este sistema. $\Phi = 0$ indica independencia causal completa en esas combinaciones de alcance/mecanismo. \\
+    \bottomrule
+\end{longtable}
+
+% ─────────────────────────── 7. ESTRUCTURA DE ARCHIVOS ───────────────────────────
+\section{Estructura de Archivos del Proyecto}
+
+\begin{lstlisting}[language={}]
+proyecto-analisis-kpartitions/
+|
++-- GeoMIP/
+|   +-- data/
+|   |   +-- samples/
+|   |       +-- N10A.csv     <- Sistema 10 nodos (incluido)
+|   |       +-- N15B.csv     <- Sistema 15 nodos (incluido)
+|   |       +-- N20A.csv     <- GENERAR: python generar_tpms.py --solo 20
+|   |       +-- N22A.csv     <- GENERAR: python generar_tpms.py --solo 22
+|   |       +-- N25A.csv     <- GENERAR: python generar_tpms.py --solo 25
+|   |
+|   +-- src/
+|       +-- Method2_Dynamic_Programming_Reformulation/
+|           +-- fill_excel_runner.py    <- Runner principal
+|           +-- benchmark_mejorado.py   <- Benchmark
+|           +-- generar_tpms.py         <- Generador de TPMs
+|           +-- benchmark_resultado.xlsx  <- Salida del benchmark
+|           |
+|           +-- utils/
+|           |   +-- excel_loader.py     <- Lectura del Excel
+|           |   +-- excel_writer.py     <- Escritura de resultados
+|           |
+|           +-- src/controllers/
+|               +-- manager.py
+|               +-- strategies/
+|                   +-- geometric_k.py  <- Algoritmo CORE
+|                   +-- geometric.py
+|                   +-- q_nodes.py
+|
++-- DocsNuevos/
+    +-- DatosPruebas2026_1.xlsx  <- Excel del profesor (entrada/salida)
+\end{lstlisting}
+
+\end{document}

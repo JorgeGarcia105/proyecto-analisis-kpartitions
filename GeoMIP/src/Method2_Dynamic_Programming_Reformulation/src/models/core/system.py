@@ -10,6 +10,23 @@ from src.models.base.application import aplicacion
 from src.constants.base import COLS_IDX
 
 
+_SMALL_ARRAY_THRESHOLD = 25
+
+
+def _fast_intersect1d(left: NDArray[np.int8], right: NDArray[np.int8]) -> NDArray[np.int8]:
+    if left.size <= _SMALL_ARRAY_THRESHOLD and right.size <= _SMALL_ARRAY_THRESHOLD:
+        right_set = {int(value) for value in right}
+        return np.array([value for value in left if int(value) in right_set], dtype=left.dtype)
+    return np.intersect1d(left, right)
+
+
+def _fast_setdiff1d(left: NDArray[np.int8], right: NDArray[np.int8]) -> NDArray[np.int8]:
+    if left.size <= _SMALL_ARRAY_THRESHOLD and right.size <= _SMALL_ARRAY_THRESHOLD:
+        right_set = {int(value) for value in right}
+        return np.array([value for value in left if int(value) not in right_set], dtype=left.dtype)
+    return np.setdiff1d(left, right)
+
+
 class System:
     """
     La clase sistema es la encargada de realizar las operaciones de condicionamiento, substracción para generación de subsistemas y obtención de las distribuciones marginales para realizar eficientemente el cálculo de la EMD en el Efecto.
@@ -128,15 +145,16 @@ class System:
 
         Como se aprecia se hizo reducción en la dimensión más significativa y prevaleció las dimensiones donde C=0 (agrupamiento más externo, primera posición).
         """
-        indices_validos = np.intersect1d(self.indices_ncubos, indices)
+        indices_validos = _fast_intersect1d(self.indices_ncubos, indices)
         if not indices_validos.size:
             return self
+        indices_validos_set = {int(idx) for idx in indices_validos}
         nuevo_sis = System.__new__(System)
         nuevo_sis.estado_inicial = self.estado_inicial
         nuevo_sis.ncubos = tuple(
             cube.condicionar(indices_validos, self.estado_inicial)
             for cube in self.ncubos
-            if cube.indice not in indices_validos
+            if cube.indice not in indices_validos_set
         )
         return nuevo_sis
 
@@ -209,13 +227,14 @@ class System:
         Los indices asociados a los literales o variables independiente al tiempo son `0:(A|a), 1:(B|b), 2:(C|c)`.
         En el ejemplo se aprecia lo que puede representarse como que el sistema `V={A_abc,B_abc,C_abc}` sufrió una martinalización en `A in (t+1)`, dejando `B` y `C`, sobre los que se aplicó luego una marginalización en `c in (t)`.
         """
-        valid_futures = np.setdiff1d(self.indices_ncubos, alcance_dims)
+        valid_futures = _fast_setdiff1d(self.indices_ncubos, alcance_dims)
+        valid_futures_set = {int(idx) for idx in valid_futures}
         new_sys = System.__new__(System)
         new_sys.estado_inicial = self.estado_inicial
         new_sys.ncubos = tuple(
             cube.marginalizar(mecanismo_dims)
             for cube in self.ncubos
-            if cube.indice in valid_futures
+            if cube.indice in valid_futures_set
         )
         return new_sys
 
@@ -237,9 +256,10 @@ class System:
         new_sys = System.__new__(System)
         new_sys.estado_inicial = self.estado_inicial
 
+        alcance_set = {int(idx) for idx in alcance}
         new_sys.ncubos = tuple(
-            cube.marginalizar(np.setdiff1d(cube.dims, mecanismo))
-            if cube.indice in alcance
+            cube.marginalizar(_fast_setdiff1d(cube.dims, mecanismo))
+            if cube.indice in alcance_set
             else cube.marginalizar(mecanismo)
             for cube in self.ncubos
         )

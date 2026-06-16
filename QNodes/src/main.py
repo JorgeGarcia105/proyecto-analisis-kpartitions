@@ -9,10 +9,10 @@ def iniciar():
     """Punto de entrada"""
 
     # ABCD #
-    estado_inicial = "1000000000000000000000"
-    condiciones =    "1111111111111111111111"
-    alcance =        "1111111111111111111111"
-    mecanismo =      "0111111111111111111111"
+    estado_inicial = "1000000000"
+    condiciones =    "1111111111"
+    alcance =        "1111111111"
+    mecanismo =      "0111111111"
     
     #010101010101010101010
     #101010101010101010101

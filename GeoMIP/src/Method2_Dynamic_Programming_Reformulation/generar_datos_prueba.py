@@ -10,6 +10,7 @@ Uso (desde Method2_Dynamic_Programming_Reformulation/):
 """
 
 import sys
+import argparse
 import time
 from pathlib import Path
 
@@ -33,39 +34,75 @@ from KParticiones.GeoMIP_K.src.strategies.geometric_k import KPartitionGeometric
 SAMPLES_DIR = PROJECT_ROOT / "GeoMIP" / "data" / "samples"
 RESULTS_DIR = PROJECT_ROOT / "GeoMIP" / "results"
 
-# --- Configuracion del sistema N10A ---
-ESTADO_INICIAL = "1000000000"
-NODOS = list("ABCDEFGHIJ")           # 10 nodos
-SISTEMA = "ABCDEFGHIJ"
-SISTEMA_CANDIDATO = "ABCDEFGHIJ"
+# --- Configuraciones de sistemas disponibles ---
+CONFIGS = {
+    "N10A": {
+        "estado_inicial": "1000000000",
+        "nodos": list("ABCDEFGHIJ"),
+        "pruebas": [
+            ("ABCDEFGHIJ", "ABCDEFGHIJ"),
+            ("ABCDEFGHIJ", "ABCDEFGHI"),
+            ("ABCDEFGHIJ", "BCDEFGHIJ"),
+            ("ABCDEFGHIJ", "BCDEFGHI"),
+            ("ABCDEFGHIJ", "ABDEGHJ"),
+            ("ABCDEFGHIJ", "ACEGI"),
+            ("ABCDEFGHIJ", "BDFHJ"),
+            ("ABCDEFGHI",  "ABCDEFGHIJ"),
+            ("ABCDEFGHI",  "ABCDEFGHI"),
+            ("ABCDEFGHI",  "BCDEFGHIJ")
+        ],
+    },
+    "N15A": {
+        "estado_inicial": "100000000000000",
+        "nodos": list("ABCDEFGHIJKLMNO"),
+        "pruebas": [
+            ("ABCDEFGHIJKLMNO", "ABCDEFGHIJKLMNO"),
+            ("ABCDEFGHIJKLMNO", "ABCDEFGHIJKLMN"),
+            ("ABCDEFGHIJKLMNO", "BCDEFGHIJKLMNO"),
+            ("ABCDEFGHIJKLMNO", "BCDEFGHIJKLMN"),
+            ("ABCDEFGHIJKLMNO", "ABDEGHJKMN"),
+            ("ABCDEFGHIJKLMNO", "ACEGIKMO"),
+            ("ABCDEFGHIJKLMNO", "BDFHJLN"),
+            ("ABCDEFGHIJKLMN",  "ABCDEFGHIJKLMNO"),
+            ("ABCDEFGHIJKLMN",  "ABCDEFGHIJKLMN")
+         #  ("ABCDEFGHIJKLMN",  "BCDEFGHIJKLMNO"),
+         #  ("ABCDEFGHIJKLMN",  "BCDEFGHIJKLMN"),
+         #   ("ABCDEFGHIJKLMN",  "ABDEGHJKMN"),
+         #   ("ABCDEFGHIJKLMN",  "ACEGIKMO"),
+         #   ("ABCDEFGHIJKLMN",  "BDFHJLN"),
+         #  ("BCDEFGHIJKLMNO",  "ABCDEFGHIJKLMNO"),
+        ],
+    },
+    "N20A": {
+        "estado_inicial": "10000000000000000000",
+        "nodos": list("ABCDEFGHIJKLMNOPQRST"),
+        "pruebas": [
+            ("ABCDEFGHIJKLMNOPQRST", "ABCDEFGHIJKLMNOPQRST"),
+            ("ABCDEFGHIJKLMNOPQRST", "ABCDEFGHIJKLMNOPQRS"),
+            ("ABCDEFGHIJKLMNOPQRST", "BCDEFGHIJKLMNOPQRST"),
+            ("ABCDEFGHIJKLMNOPQRST", "BCDEFGHIJKLMNOPQRS"),
+            ("ABCDEFGHIJKLMNOPQRST", "ABDEGHIJLMOPQRST"),
+            ("ABCDEFGHIJKLMNOPQRST", "ACEGIKMOQRS"),
+            ("ABCDEFGHIJKLMNOPQRST", "BDFHJLNPRT"),
+            ("ABCDEFGHIJKLMNOPQRS",  "ABCDEFGHIJKLMNOPQRST")
+            #("ABCDEFGHIJKLMNOPQRS",  "ABCDEFGHIJKLMNOPQRS"),
+            #("ABCDEFGHIJKLMNOPQRS",  "BCDEFGHIJKLMNOPQRST"),
+            #("ABCDEFGHIJKLMNOPQRS",  "BCDEFGHIJKLMNOPQRS"),
+            #("ABCDEFGHIJKLMNOPQRS",  "ABDEGHIJLMOPQRST"),
+            #("ABCDEFGHIJKLMNOPQRS",  "ACEGIKMOQRS"),
+            #("ABCDEFGHIJKLMNOPQRS",  "BDFHJLNPRT"),
+            #("BCDEFGHIJKLMNOPQRST",  "ABCDEFGHIJKLMNOPQRST"),
+        ],
+    },
+}
 
-# Conversion letra -> bit string (posicion en NODOS)
-def letras_a_bits(letras: str, total: int = 10) -> str:
-    bits = ["0"] * total
+
+def letras_a_bits(letras: str, nodos: list) -> str:
+    bits = ["0"] * len(nodos)
     for c in letras.upper():
-        if c in NODOS:
-            bits[NODOS.index(c)] = "1"
+        if c in nodos:
+            bits[nodos.index(c)] = "1"
     return "".join(bits)
-
-
-# --- Pruebas definidas (segun imagen DatosPruebas2026_1) ---
-PRUEBAS = [
-    # (alcance_letras, mecanismo_letras)
-    ("ABCDEFGHIJ", "ABCDEFGHIJ"),
-    ("ABCDEFGHIJ", "ABCDEFGHI"),
-    ("ABCDEFGHIJ", "BCDEFGHIJ"),
-    ("ABCDEFGHIJ", "BCDEFGHI"),
-    ("ABCDEFGHIJ", "ABDEGHJ"),
-    ("ABCDEFGHIJ", "ACEGI"),
-    ("ABCDEFGHIJ", "BDFHJ"),
-    ("ABCDEFGHI",  "ABCDEFGHIJ"),
-    ("ABCDEFGHI",  "ABCDEFGHI"),
-    ("ABCDEFGHI",  "BCDEFGHIJ"),
-    ("ABCDEFGHI",  "BCDEFGHI"),
-    ("ABCDEFGHI",  "ABDEGHJ"),
-    ("ABCDEFGHI",  "ACEGI"),
-    ("ABCDEFGHI",  "BDFHJ"),
-]
 
 TIMEOUT_SEG = 300
 
@@ -82,10 +119,11 @@ def ejecutar_geometric_k(tpm, estado_ini, condicion, alcance_bits, mec_bits, k=3
         return f"ERROR: {e}", None, None
 
 
-def construir_excel(filas_resultado: list, ruta_salida: Path):
+def construir_excel(filas_resultado: list, sistema: str, nodos: list, estado_ini: str, ruta_salida: Path, k: int = 3):
+    sistema_str = "".join(nodos)
     wb = Workbook()
     ws = wb.active
-    ws.title = "N10A"
+    ws.title = sistema
 
     # --- Colores ---
     fill_verde  = PatternFill("solid", fgColor="00B050")
@@ -108,15 +146,15 @@ def construir_excel(filas_resultado: list, ruta_salida: Path):
 
     # --- Fila 1: estado inicial ---
     ws.cell(row=1, column=1, value="").alignment = centro
-    ws.cell(row=1, column=2, value=ESTADO_INICIAL).alignment = centro
+    ws.cell(row=1, column=2, value=estado_ini).alignment = centro
 
     # --- Fila 2: Sistema ---
     ws.cell(row=2, column=1, value="Sistema:").font = negrita
-    ws.cell(row=2, column=2, value=SISTEMA)
+    ws.cell(row=2, column=2, value=sistema_str)
 
     # --- Fila 3: Sistema Candidato ---
     ws.cell(row=3, column=1, value="Sistema Candidato:").font = negrita
-    ws.cell(row=3, column=2, value=SISTEMA_CANDIDATO)
+    ws.cell(row=3, column=2, value=sistema_str)
 
     # --- Fila 4: grupos principales ---
     # Col D-F: PRUEBAS BIPARTICIONES (verde)
@@ -125,7 +163,7 @@ def construir_excel(filas_resultado: list, ruta_salida: Path):
 
     # Col J-O: PRUEBAS 3-PARTICIONES (amarillo)
     ws.merge_cells("J4:O4")
-    celda(ws, 4, 10, "PRUEBAS 3-PARTICIONES", fill=fill_amarillo, bold=True)
+    celda(ws, 4, 10, f"PRUEBAS {k}-PARTICIONES", fill=fill_amarillo, bold=True)
 
     # --- Fila 5: estrategias ---
     ws.merge_cells("D5:F5")
@@ -174,36 +212,52 @@ def construir_excel(filas_resultado: list, ruta_salida: Path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Generar datos de prueba GeoMIP k-particiones")
+    parser.add_argument(
+        "--sistema", type=str, choices=list(CONFIGS.keys()), default="N10A",
+        help="Sistema a procesar: N10A, N15A o N20A (default: N10A)"
+    )
+    parser.add_argument(
+        "--k", type=int, choices=[3, 4, 5], default=3,
+        help="Numero de particiones: 3, 4 o 5 (default: 3)"
+    )
+    args = parser.parse_args()
+
+    cfg = CONFIGS[args.sistema]
+    estado_ini  = cfg["estado_inicial"]
+    nodos       = cfg["nodos"]
+    pruebas     = cfg["pruebas"]
+    k           = args.k
+
     aplicacion.profiler_habilitado = False
 
-    tpm_path = SAMPLES_DIR / "N10A.csv"
+    tpm_path = SAMPLES_DIR / f"{args.sistema}.csv"
     if not tpm_path.exists():
         print(f"No se encontro: {tpm_path}")
         return
 
     tpm = np.genfromtxt(tpm_path, delimiter=",")
-    condicion = "1" * len(ESTADO_INICIAL)
+    condicion = "1" * len(estado_ini)
 
     print(f"\n{'='*55}")
-    print(f"  Generando datos de prueba — N10A  k=3")
+    print(f"  Generando datos de prueba — {args.sistema}  k={k}")
     print(f"{'='*55}")
 
     filas = []
-    for i, (alcance_l, mec_l) in enumerate(PRUEBAS, start=1):
-        alcance_bits = letras_a_bits(alcance_l)
-        mec_bits     = letras_a_bits(mec_l)
+    for i, (alcance_l, mec_l) in enumerate(pruebas, start=1):
+        alcance_bits = letras_a_bits(alcance_l, nodos)
+        mec_bits     = letras_a_bits(mec_l, nodos)
 
         print(f"  Prueba {i:02d}: alcance={alcance_l}  mec={mec_l} ... ", end="", flush=True)
         part, perdida, tiempo = ejecutar_geometric_k(
-            tpm, ESTADO_INICIAL, condicion, alcance_bits, mec_bits, k=3
+            tpm, estado_ini, condicion, alcance_bits, mec_bits, k=k
         )
         estado = f"perdida={perdida}  t={tiempo}s" if perdida is not None else part
         print(estado)
-
         filas.append((i, alcance_l, mec_l, part, perdida, tiempo))
 
-    salida = RESULTS_DIR / "DatosPruebas_Geometric_k3_N10A.xlsx"
-    construir_excel(filas, salida)
+    salida = RESULTS_DIR / f"DatosPruebas_Geometric_k{k}_{args.sistema}.xlsx"
+    construir_excel(filas, args.sistema, nodos, estado_ini, salida, k=k)
     print(f"{'='*55}\n")
 
 

@@ -30,7 +30,7 @@ Restricciones del enunciado respetadas
 
 import time
 import numpy as np
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Iterable, List
 
 from src.controllers.manager import Manager
 from src.funcs.base import ABECEDARY, emd_efecto
@@ -257,7 +257,7 @@ class KPartitionGeometricSIA(SIA):
     # Generacion de candidatos — estrategia greedy geometrica
     # ------------------------------------------------------------------
 
-    def _candidatos_geometricos(self) -> List[List[Tuple[np.ndarray, np.ndarray]]]:
+    def _candidatos_geometricos(self) -> Iterable[List[Tuple[np.ndarray, np.ndarray]]]:
         """
         Genera candidatos de k-particion usando la tabla T.
 
@@ -283,16 +283,15 @@ class KPartitionGeometricSIA(SIA):
         key_global = (tuple(self.estado_inicial), tuple(self.estado_final))
         costos = self.tabla_transiciones.get(key_global)
         if costos is None:
-            return []
+            return
 
         dims = self.sia_subsistema.dims_ncubos
         idxs = self.sia_subsistema.indices_ncubos
         n_futuros = len(costos)
 
         if n_futuros < self.k:
-            return []
+            return
 
-        candidatos = []
         orden = np.argsort(costos)
 
         # --- Capa 1: cuantiles + rotaciones ---
@@ -305,7 +304,7 @@ class KPartitionGeometricSIA(SIA):
             grupos_pres_idx = self._asignar_presentes(grupos_fut_idx)
             cand = self._construir_candidato(grupos_fut_idx, grupos_pres_idx, idxs, dims)
             if cand:
-                candidatos.append(cand)
+                yield cand
 
         # --- Capa 2: cortes en niveles BFS ---
         n_niveles = len(self.caminos)
@@ -352,7 +351,7 @@ class KPartitionGeometricSIA(SIA):
             grupos_pres_bfs = self._asignar_presentes(grupos_fut_bfs)
             cand_bfs = self._construir_candidato(grupos_fut_bfs, grupos_pres_bfs, idxs, dims)
             if cand_bfs:
-                candidatos.append(cand_bfs)
+                yield cand_bfs
 
         # --- Capa 3: separacion por extremos de costo ---
         top_k_minus_1 = list(np.argsort(costos)[::-1][: self.k - 1])
@@ -366,9 +365,7 @@ class KPartitionGeometricSIA(SIA):
                     grupos_fut_ext, grupos_pres_ext, idxs, dims
                 )
                 if cand_ext:
-                    candidatos.append(cand_ext)
-
-        return candidatos
+                    yield cand_ext
 
     def _construir_candidato(
         self,
@@ -467,28 +464,35 @@ class KPartitionGeometricSIA(SIA):
 
         self._construir_tabla()
 
-        candidatos = self._candidatos_geometricos()
-        self.logger.critic(f"Candidatos generados: {len(candidatos)}")
-
         dims = self.sia_subsistema.dims_ncubos
         idxs = self.sia_subsistema.indices_ncubos
 
-        for partes in candidatos:
+        mejor_key: Optional[tuple] = None
+        mejor_resultado: Optional[Tuple[float, np.ndarray]] = None
+        candidatos_generados = 0
+
+        for partes in self._candidatos_geometricos():
+            candidatos_generados += 1
             key = self._partes_a_key(partes, dims, idxs)
-            if key in self.memoria_particiones:
-                continue
             resultado = self._evaluar_candidato(partes)
-            if resultado is not None:
-                self.memoria_particiones[key] = resultado
+            if resultado is None:
+                continue
+            if mejor_resultado is None or resultado[0] < mejor_resultado[0]:
+                mejor_key = key
+                mejor_resultado = resultado
 
-        if not self.memoria_particiones:
+        self.logger.critic(f"Candidatos evaluados: {candidatos_generados}")
+
+        if mejor_key is None or mejor_resultado is None:
             key_trivial = self._key_fallback(dims, idxs)
-            self.memoria_particiones[key_trivial] = (0.0, self.sia_dists_marginales)
+            self.memoria_particiones = {key_trivial: (0.0, self.sia_dists_marginales)}
+            return key_trivial
 
-        return min(
-            self.memoria_particiones,
-            key=lambda k: self.memoria_particiones[k][0],
-        )
+        # Conservamos solo la mejor solución para reducir memoria y
+        # mantener la información necesaria para Excel y comparaciones.
+        self.memoria_particiones = {mejor_key: mejor_resultado}
+
+        return mejor_key
 
     # ------------------------------------------------------------------
     # Utilidades de clave y formato

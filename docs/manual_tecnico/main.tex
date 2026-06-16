@@ -1,0 +1,450 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{array}
+\usepackage{tcolorbox}
+
+\geometry{margin=2.5cm}
+
+\definecolor{primary}{RGB}{31,73,125}
+\definecolor{secondary}{RGB}{68,114,196}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{warningbg}{RGB}{255,243,205}
+\definecolor{successbg}{RGB}{212,237,218}
+\definecolor{errorbg}{RGB}{248,215,218}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{secondary},
+    breaklines=true,
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    language=Python,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{primary}{\textbf{Manual Técnico}}}
+\fancyhead[R]{\textcolor{primary}{GeoMIP — k-Particiones}}
+\fancyfoot[C]{\thepage}
+\fancyfoot[L]{\small Universidad de Caldas}
+\fancyfoot[R]{\small 2026}
+
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{\thesection.\quad}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{}{0em}{\thesubsection.\quad}
+\titleformat{\subsubsection}{\normalsize\bfseries}{}{0em}{\thesubsubsection.\quad}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=secondary,
+}
+
+\tcbuselibrary{skins}
+\newtcolorbox{notebox}[1][]{
+    colback=warningbg, colframe=orange!70!black,
+    title={\textbf{Nota}}, fonttitle=\small, #1
+}
+\newtcolorbox{bugbox}[1][]{
+    colback=errorbg, colframe=red!60!black,
+    title={\textbf{Bug corregido}}, fonttitle=\small, #1
+}
+\newtcolorbox{optbox}[1][]{
+    colback=successbg, colframe=green!50!black,
+    title={\textbf{Optimización}}, fonttitle=\small, #1
+}
+
+\begin{document}
+
+% ─────────────────────────── PORTADA ───────────────────────────
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    {\Huge\bfseries\color{primary} Manual Técnico\\[0.5em]
+    \Large Sistema GeoMIP\\[0.3em]
+    \large Algoritmo k-MIP Geométrico}
+    \vspace{1.5cm}
+
+    \rule{\linewidth}{2pt}
+    \vspace{0.5cm}
+
+    {\large\textbf{Proyecto de Análisis y Diseño de Algoritmos}}\\[0.3em]
+    {\large Ingeniería en Sistemas y Computación}\\[0.3em]
+    {\large Facultad de Ingeniería — Universidad de Caldas}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.8cm}
+
+    {\large\textbf{Autores:}}\\[0.5em]
+    {\large Jorge Ivan Garcia Torres}\\[0.3em]
+    {\large Camilo Botero Merchor}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.5cm}
+    {\large Semestre 2026-1}
+
+    \vfill
+    {\small\color{gray} proyecto-analisis-kpartitions / GeoMIP}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────── 1. INSTALACIÓN ───────────────────────────
+\section{Instalación y Configuración del Entorno}
+
+\subsection{Requisitos del sistema}
+\begin{longtable}{ll}
+    \toprule
+    Componente & Requisito \\
+    \midrule
+    \endhead
+    Sistema operativo & Windows 10/11, Linux o macOS \\
+    Python & 3.11 o superior \\
+    RAM mínima & 4 GB (8 GB recomendado para N22A, N25A) \\
+    Disco & 2 GB libres (N25A.csv $\approx$ 800 MB) \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Creación del entorno virtual}
+\begin{lstlisting}[language=bash]
+# Desde la raiz del repositorio
+python -m venv .venv
+
+# Windows (Git Bash)
+source .venv/Scripts/activate
+
+# Linux / macOS
+source .venv/bin/activate
+\end{lstlisting}
+
+\subsection{Instalación de dependencias}
+\begin{lstlisting}[language=bash]
+pip install numpy openpyxl pandas pyinstrument
+\end{lstlisting}
+
+\subsection{Verificación}
+\begin{lstlisting}[language=bash]
+python -c "import numpy, openpyxl, pandas; print('OK')"
+\end{lstlisting}
+
+% ─────────────────────────── 2. MÓDULOS ───────────────────────────
+\section{Referencia de Módulos}
+
+\subsection{generar\_tpms.py}
+
+\textbf{Propósito:} Genera los archivos CSV de matrices de transición de probabilidad (TPM).
+
+\textbf{Función principal:}
+\begin{lstlisting}
+def generar_tpm(n_nodos: int, sufijo: str, carpeta: Path,
+                semilla: int = 0, forzar: bool = False) -> Path
+\end{lstlisting}
+
+\begin{longtable}{lll}
+    \toprule
+    Parámetro & Tipo & Descripción \\
+    \midrule
+    \endhead
+    \texttt{n\_nodos} & int & Número de nodos del sistema (10, 15, 20, 22, 25) \\
+    \texttt{sufijo}  & str & Letra identificadora del dataset ('A', 'B', ...) \\
+    \texttt{carpeta} & Path & Ruta destino del archivo CSV \\
+    \texttt{semilla} & int & Semilla numpy (default: 0) \\
+    \texttt{forzar}  & bool & Si True, regenera aunque ya exista \\
+    \bottomrule
+\end{longtable}
+
+\textbf{Estructura de la TPM generada:}
+\begin{lstlisting}
+# Matriz 2^N x N de enteros 0/1
+np.random.seed(semilla)
+matriz = np.random.randint(2, size=(2**n_nodos, n_nodos), dtype=np.uint8)
+np.savetxt(ruta, matriz, delimiter=",", fmt="%d")
+\end{lstlisting}
+
+\begin{notebox}
+La semilla numpy garantiza reproducibilidad. Con \texttt{semilla=0} los archivos son idénticos en cualquier máquina. Cambiar la semilla genera datasets distintos.
+\end{notebox}
+
+\subsection{excel\_loader.py}
+
+\textbf{Función principal:}
+\begin{lstlisting}
+def cargar_datos_excel(ruta: str) -> list[dict]
+\end{lstlisting}
+
+\textbf{Estructura del dict devuelto por caso:}
+\begin{lstlisting}
+{
+    "hoja":           str,   # ej. "10A-Elementos"
+    "fila_excel":     int,   # numero de fila en Excel (desde 6)
+    "prueba":         int,   # numero de prueba
+    "estado_inicial": str,   # binario, ej. "1000000000"
+    "condicion":      str,   # letras, ej. "ABCDEFGHIJ"
+    "subsistema":     str,   # letras (alcance), ej. "ABCDEFGHI"
+    "mecanismo":      str,   # letras, ej. "ACEGI"
+}
+\end{lstlisting}
+
+\begin{notebox}
+El estado inicial se sanitiza automáticamente: ``1,000,000,000'' → ``1000000000''. El corte anticipado tras 15 filas vacías consecutivas evita iterar las 1003 filas vacías que tiene cada hoja.
+\end{notebox}
+
+\subsection{excel\_writer.py}
+
+\textbf{Mapeo de columnas (COLUMNAS\_RESULTADOS):}
+\begin{lstlisting}
+COLUMNAS_RESULTADOS = {
+    (2, "QNodes"):    ("D", "E", "F"),
+    (2, "Geometric"): ("G", "H", "I"),
+    (3, "QNodes"):    ("J", "K", "L"),
+    (3, "Geometric"): ("M", "N", "O"),
+    (4, "QNodes"):    ("P", "Q", "R"),
+    (4, "Geometric"): ("S", "T", "U"),
+    (5, "QNodes"):    ("V", "W", "X"),
+    (5, "Geometric"): ("Y", "Z", "AA"),
+}
+\end{lstlisting}
+
+\textbf{Función de escritura:}
+\begin{lstlisting}
+def escribir_resultado_ws(ws, fila: int, k: int, estrategia: str,
+                          particion: str, perdida: float,
+                          tiempo: float) -> None
+\end{lstlisting}
+
+\subsection{KPartitionGeometricSIA (geometric\_k.py)}
+
+\subsubsection{Constructor}
+\begin{lstlisting}
+def __init__(self, gestor: Manager, k: int = 2)
+\end{lstlisting}
+
+\begin{longtable}{lll}
+    \toprule
+    Atributo & Tipo & Descripción \\
+    \midrule
+    \endhead
+    \texttt{k} & int & Número de particiones (2--5) \\
+    \texttt{tabla\_transiciones} & dict & Tabla T: (estado\_i, estado\_j) → [costos] \\
+    \texttt{\_flat\_data} & list[ndarray] & TPM aplanada por nodo para acceso O(1) \\
+    \texttt{\_caminos} & dict & BFS: nivel → lista de estados \\
+    \texttt{\_estado\_int\_cache} & dict & Cache de conversión tuple → int \\
+    \texttt{memoria\_particiones} & dict & key → (emd, distribución) \\
+    \bottomrule
+\end{longtable}
+
+\subsubsection{Método principal}
+\begin{lstlisting}
+@profile(context={TYPE_TAG: GEOMETRIC_ANALYSIS_TAG})
+def aplicar_estrategia(self, condicion: str, alcance: str,
+                       mecanismo: str, tpm: np.ndarray) -> Solution
+\end{lstlisting}
+
+\begin{notebox}
+\textbf{Orden de argumentos:} el runner prueba dos órdenes automáticamente: \\
+\texttt{(condicion, mecanismo, alcance, tpm)} y \texttt{(condicion, alcance, mecanismo, tpm)}.
+\end{notebox}
+
+\subsubsection{\_construir\_tabla}
+BFS desde estado inicial hasta estado final (Hamming creciente). Complejidad: $O(N \cdot 2^N)$ operaciones de costo.
+
+\begin{lstlisting}
+def _construir_tabla(self) -> None:
+    # nivel 0: [estado_inicial]
+    # nivel 1: vecinos a distancia Hamming 1
+    # ...
+    # nivel N: [estado_final]
+\end{lstlisting}
+
+\subsubsection{\_candidatos\_k2 (OPTIMIZADO)}
+
+\begin{optbox}
+Para k=2, en vez de generar $S(n,2) = 2^{n-1}-1$ candidatos, se generan $\sim 1.5 \cdot n$:
+\begin{itemize}
+    \item \textbf{Tipo A:} separar cada variable futura individualmente ($n$ candidatos).
+    \item \textbf{Tipo B:} selección BFS por nivel hasta la mitad ($\sim n/2$ candidatos).
+\end{itemize}
+Para $n=10$: 14 candidatos vs 511 del original ($\sim 34\times$ más rápido).
+\end{optbox}
+
+\begin{bugbox}
+\textbf{Índices desplazados:} los futuros usan índices $[n\_pres, \ldots, n\_pres + n\_vars - 1]$ y los presentes $[0, \ldots, n\_pres-1]$. Sin este desplazamiento, \texttt{\_evaluar\_candidato} confundía futuros con presentes cuando $n\_vars \leq n\_pres$, produciendo el error \texttt{shapes (225,) (15,) could not be broadcast}.
+\end{bugbox}
+
+\subsubsection{\_evaluar\_candidato}
+\begin{lstlisting}
+def _evaluar_candidato(self, grupos_vars: list[list[int]]
+                       ) -> tuple[float, np.ndarray] | None:
+    # Para cada grupo:
+    #   - v < n_pres  => presente: dims_ncubos[v]
+    #   - v >= n_pres => futuro:   indices_ncubos[v - n_pres]
+    # Calcula biparticion y distribucion marginal
+    # Para k>2: producto tensorial (np.kron)
+    # Verifica compatibilidad de shapes antes de EMD
+    # Retorna (emd, dist) o None si hay error
+\end{lstlisting}
+
+\subsubsection{\_find\_k\_mip}
+\begin{lstlisting}
+def _find_k_mip(self) -> tuple:
+    self._construir_tabla()
+    candidatos = self._candidatos_geometricos(self.k)
+    for grupos in candidatos:
+        resultado = self._evaluar_candidato(grupos)
+        if resultado is not None:
+            self.memoria_particiones[key] = resultado
+            if resultado[0] == 0.0:   # Early-exit
+                return key
+    return min(self.memoria_particiones,
+               key=lambda k: self.memoria_particiones[k][0])
+\end{lstlisting}
+
+\subsection{fill\_excel\_runner.py}
+
+\subsubsection{\_convertir\_a\_binario}
+\begin{lstlisting}
+def _convertir_a_binario(texto: str, n_bits: int) -> str:
+    # Si ya es binario (solo 0/1), devuelve tal cual ajustado a n_bits
+    # Si son letras: A=bit0, B=bit1, ..., T=bit19
+    # Ej: "ACEGI", n=10 -> "1010101010"
+    #     "BCDEFGHIJ", n=10 -> "0111111111"
+\end{lstlisting}
+
+\subsubsection{Timeout por proceso}
+\begin{lstlisting}
+def _ejecutar_con_timeout(target, args: tuple, timeout: int) -> dict:
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=target, args=(q,) + args)
+    p.start()
+    p.join(timeout=timeout)
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        return {"ok": False, "error": f"Timeout ({timeout}s)"}
+    return q.get() if not q.empty() else {"ok": False, "error": "Sin resultado"}
+\end{lstlisting}
+
+% ─────────────────────────── 3. ERRORES CONOCIDOS ───────────────────────────
+\section{Errores Conocidos y Soluciones}
+
+\subsection{SyntaxError: unmatched ')'}
+\textbf{Causa:} Corrupción del archivo en línea 4 de \texttt{fill\_excel\_runner.py}. La línea \texttt{fromfile\_\_).resolve()from pathlib import Path} es una fusión de dos líneas.
+
+\textbf{Solución:}
+\begin{lstlisting}
+# Reemplazar la linea corrupta por:
+from pathlib import Path
+THIS_FILE = Path(__file__).resolve()
+\end{lstlisting}
+
+\subsection{SyntaxError en excel\_writer.py línea 6}
+\textbf{Causa:} Corrupción similar. La línea \texttt{\}' en el archivo Excel.")    (2, "QNodes"): ("D", "E", "F"),} fusiona el cierre del raise con la primera entrada del diccionario.
+
+\textbf{Solución:} Separar en las dos líneas correspondientes y restaurar el orden lógico del archivo.
+
+\subsection{operands could not be broadcast (225,) vs (15,)}
+\textbf{Causa:} Índices de futuros sin desplazamiento por \texttt{n\_pres} en los candidatos.
+
+\textbf{Solución:} En \texttt{\_candidatos\_k2} y \texttt{\_candidatos\_greedy\_kn}, todos los futuros deben ser \texttt{n\_pres + i} en vez de \texttt{i}.
+
+\subsection{KeyError: 'Worksheet 25A-Elementos does not exist'}
+\textbf{Causa:} La hoja tiene espacio al final (\texttt{'25A-Elementos '}) en el workbook.
+
+\textbf{Solución:}
+\begin{lstlisting}
+hoja_real = next((s for s in wb.sheetnames if s.strip() == hoja), hoja)
+ws = wb[hoja_real]
+\end{lstlisting}
+
+\subsection{FileNotFoundError: N20A.csv / N22A.csv / N25A.csv}
+\textbf{Causa:} Los archivos TPM no fueron generados (no se incluyen en el repositorio por tamaño).
+
+\textbf{Solución:}
+\begin{lstlisting}[language=bash]
+python generar_tpms.py --solo 20 22 25
+\end{lstlisting}
+
+\subsection{pyinstrument: session has 279756 samples}
+\textbf{Causa:} El decorador \texttt{@profile} de pyinstrument acumula demasiadas muestras en ejecuciones largas (N=15+), causando overhead y mensajes de advertencia.
+
+\textbf{Solución:} El nuevo runner ejecuta cada caso en un proceso hijo aislado (\texttt{multiprocessing}), evitando que el profiler del padre interfiera.
+
+% ─────────────────────────── 4. MÉTRICAS ───────────────────────────
+\section{Métricas del Benchmark}
+
+\subsection{Definiciones (Tabla 5.1)}
+
+\textbf{Tasa de acierto exacto:}
+\[ \text{Tasa} = \frac{\text{casos con } J(\pi_{ref}, \pi_{geo}) < 10^{-6}}{N_{total}} \times 100\% \]
+
+\textbf{Error relativo en } $\Phi$:
+\[ E_{rel} = \frac{|\Phi_{ref} - \Phi_{geo}|}{\Phi_{ref}}, \quad E_{rel} = 0 \text{ si } \Phi_{ref} = 0 \]
+
+\textbf{Distancia de Jaccard entre particiones:}
+\[ J(\pi_a, \pi_b) = \min\left( \overline{J}_{dir}, \overline{J}_{cruz} \right) \]
+donde $\overline{J}_{dir}$ y $\overline{J}_{cruz}$ son los promedios de las distancias de Jaccard en las dos posibles alineaciones de grupos.
+
+\textbf{Speedup:}
+\[ S_{rel} = \frac{T_{QNodes}}{T_{Geometric}} \]
+
+\subsection{Clasificación de calidad}
+\begin{longtable}{lrrr}
+    \toprule
+    Clasificación & Tasa de acierto & Error relativo & Jaccard \\
+    \midrule
+    \endhead
+    Excelente    & $> 90\%$ & $< 1\%$  & $< 0.1$ \\
+    Bueno        & $> 80\%$ & $< 5\%$  & $< 0.2$ \\
+    Aceptable    & $> 70\%$ & $< 10\%$ & $< 0.3$ \\
+    Insuficiente & $\leq 70\%$ & $\geq 10\%$ & $\geq 0.3$ \\
+    \bottomrule
+\end{longtable}
+
+% ─────────────────────────── 5. GUÍA DE OPTIMIZACIÓN ───────────────────────────
+\section{Guía de Optimización Futura}
+
+\subsection{Optimizaciones implementadas}
+\begin{enumerate}
+    \item \textbf{Reducción de candidatos k=2:} $S(n,2) \to 1.5n$ ($\sim 34\times$ en n=10).
+    \item \textbf{Vectorización numpy en cálculo de costos:} diferencias como operación de array.
+    \item \textbf{Cache de enteros de estado:} \texttt{\_estado\_int\_cache} evita reconvertir tuplas.
+    \item \textbf{Early-exit en $\Phi=0$:} retorna inmediatamente si la primera partición es perfecta.
+    \item \textbf{Timeout por proceso:} evita bloqueos en casos pesados.
+    \item \textbf{Corte anticipado en excel\_loader:} 15 vacíos consecutivos → stop (antes: 1003 filas).
+\end{enumerate}
+
+\subsection{Optimizaciones pendientes}
+\begin{enumerate}
+    \item \textbf{Paralelismo en evaluación de candidatos:} cada EMD es independiente.
+\begin{lstlisting}
+from concurrent.futures import ProcessPoolExecutor
+with ProcessPoolExecutor() as ex:
+    resultados = list(ex.map(_evaluar_candidato, candidatos))
+\end{lstlisting}
+    \item \textbf{Cache de distribuciones marginales:} si el mismo (alcance, mecanismo) se repite entre diferentes k, reusar la distribución calculada.
+    \item \textbf{Lazy loading de TPM:} cargar solo las filas necesarias para el estado inicial (para N=25 el archivo es de 800 MB pero solo se acceden $\sim 2$ filas por estado).
+\end{enumerate}
+
+\end{document}

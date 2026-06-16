@@ -1,0 +1,342 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{float}
+
+\geometry{margin=2.5cm}
+
+\definecolor{primary}{RGB}{31,73,125}
+\definecolor{secondary}{RGB}{68,114,196}
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codeframe}{RGB}{200,200,200}
+
+\lstset{
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeframe},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{secondary},
+    breaklines=true,
+    showstringspaces=false,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{primary}{\textbf{Documento de Arquitectura}}}
+\fancyhead[R]{\textcolor{primary}{GeoMIP — k-Particiones}}
+\fancyfoot[C]{\thepage}
+\fancyfoot[L]{\small Universidad de Caldas}
+\fancyfoot[R]{\small 2026}
+
+\titleformat{\section}{\Large\bfseries\color{primary}}{}{0em}{\thesection.\quad}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{}{0em}{\thesubsection.\quad}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{black}}{}{0em}{\thesubsubsection.\quad}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=secondary,
+    pdftitle={Documento de Arquitectura - GeoMIP},
+    pdfauthor={Jorge Ivan Garcia Torres, Camilo Botero Merchor}
+}
+
+\begin{document}
+
+% ─────────────────────────── PORTADA ───────────────────────────
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    {\Huge\bfseries\color{primary} Documento de Arquitectura\\[0.5em]
+    \Large Sistema GeoMIP\\[0.3em]
+    \large Algoritmo k-MIP Geométrico para k-Particiones}
+    \vspace{1.5cm}
+
+    \rule{\linewidth}{2pt}
+    \vspace{0.5cm}
+
+    {\large\textbf{Proyecto de Análisis y Diseño de Algoritmos}}\\[0.3em]
+    {\large Ingeniería en Sistemas y Computación}\\[0.3em]
+    {\large Facultad de Ingeniería — Universidad de Caldas}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.8cm}
+
+    {\large\textbf{Autores:}}\\[0.5em]
+    {\large Jorge Ivan Garcia Torres}\\[0.3em]
+    {\large Camilo Botero Merchor}
+    \vspace{1cm}
+
+    \rule{\linewidth}{0.5pt}
+    \vspace{0.5cm}
+    {\large Semestre 2026-1}\\[0.2em]
+    {\large\textit{feature/k-partition-benchmark}}
+
+    \vfill
+    {\small\color{gray} proyecto-analisis-kpartitions / GeoMIP}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ─────────────────────────── 1. INTRODUCCIÓN ───────────────────────────
+\section{Introducción}
+
+\subsection{Propósito}
+Este documento describe la arquitectura de software del sistema \textbf{GeoMIP}, una implementación del algoritmo geométrico para encontrar la partición de mínima pérdida de información integrada (k-MIP) en sistemas de N nodos. El sistema extiende la bipartición clásica de GeometricSIA hacia k-particiones arbitrarias, permitiendo evaluar sistemas de 10 hasta 25 nodos con diferentes valores de k (2, 3, 4, 5).
+
+\subsection{Alcance}
+El sistema cubre:
+\begin{itemize}
+    \item Generación de matrices de transición de probabilidad (TPM) para sistemas de N nodos.
+    \item Ejecución del algoritmo \texttt{KPartitionGeometricSIA} sobre casos de prueba definidos en un Excel institucional.
+    \item Escritura de resultados (partición, pérdida, tiempo) en el Excel del profesor.
+    \item Benchmark comparativo entre Geometric y QNodes (referencia).
+\end{itemize}
+
+\subsection{Definiciones clave}
+\begin{longtable}{>{\bfseries}p{3.5cm} p{10cm}}
+    \toprule
+    Término & Descripción \\
+    \midrule
+    \endhead
+    TPM & Transition Probability Matrix. Matriz $2^N \times N$ donde cada fila representa un estado del sistema y cada columna la probabilidad de activación de un nodo. \\
+    k-MIP & k-Partition of Minimum Information loss. Partición de k subconjuntos que minimiza la pérdida de información integrada $\Phi$. \\
+    EMD & Earth Mover's Distance. Métrica de distancia entre distribuciones de probabilidad. \\
+    Tabla T & Tabla de costos de transición construida mediante BFS modificado. Codifica la ``inercia causal'' entre pares de estados. \\
+    $\Phi$ (Phi) & Medida de información integrada. $\Phi = 0$ indica independencia causal completa. \\
+    Estado inicial & Cadena binaria de longitud N representando el estado de activación inicial del sistema. \\
+    \bottomrule
+\end{longtable}
+
+% ─────────────────────────── 2. VISTA GENERAL ───────────────────────────
+\section{Vista General del Sistema}
+
+\subsection{Contexto}
+El sistema GeoMIP forma parte de un proyecto de investigación académica que evalúa la eficiencia del algoritmo geométrico frente a métodos exactos (PyPhi/QNodes) para el cálculo de $\Phi$ en redes causales binarias. El contexto de uso es la plataforma de pruebas del curso de Análisis y Diseño de Algoritmos de la Universidad de Caldas.
+
+\subsection{Diagrama de contexto}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw=primary, fill=primary!10, rounded corners, minimum width=3cm, minimum height=1cm, align=center, font=\small},
+    arrow/.style={->, thick, color=primary},
+    label/.style={font=\footnotesize, color=gray}
+]
+    \node[box] (excel_in)  at (0,4)    {Excel del Profesor\\(249 casos)};
+    \node[box] (tpms)      at (5,4)    {Archivos TPM\\NxxA.csv};
+    \node[box] (orquestador) at (2.5,2) {src/main.py\\(Orquestador)};
+    \node[box] (algo)      at (2.5,0)  {KPartitionGeometricSIA\\(Algoritmo Core)};
+    \node[box] (excel_out) at (-1,0)   {Excel Llenado\\(Resultados)};
+    \node[box] (bench)     at (6,0)    {benchmark.py\\o benchmark_mejorado.py};
+
+    \draw[arrow] (excel_in) -- (orquestador) node[midway, left, label] {casos};
+    \draw[arrow] (tpms) -- (orquestador) node[midway, right, label] {TPM};
+    \draw[arrow] (orquestador) -- (algo) node[midway, right, label] {condición, alcance, mecanismo, k};
+    \draw[arrow] (algo) -- (orquestador) node[midway, left, label] {partición, pérdida, tiempo};
+    \draw[arrow] (orquestador) -- (excel_out) node[midway, left, label] {escritura};
+    \draw[arrow] (excel_out) -- (bench) node[midway, below, label] {lectura};
+\end{tikzpicture}
+\caption{Diagrama de contexto del sistema GeoMIP}
+\end{figure}
+
+% ─────────────────────────── 3. COMPONENTES ───────────────────────────
+\section{Arquitectura de Componentes}
+
+\subsection{Capa de Datos}
+
+\subsubsection{Archivos TPM (data/samples/) }
+Los archivos CSV representan la TPM del sistema. Su estructura es:
+\begin{itemize}
+    \item \textbf{Filas:} $2^N$ estados posibles del sistema.
+    \item \textbf{Columnas:} $N$ nodos, valor 0 o 1.
+    \item \textbf{Indexación:} little-endian. El estado \texttt{[a,b,c,...]} corresponde al índice $a + 2b + 4c + \ldots$.
+\end{itemize}
+
+\begin{longtable}{lrrr}
+    \toprule
+    Archivo & Nodos & Filas & Tamaño aprox. \\
+    \midrule
+    \endhead
+    N10A.csv & 10 & 1,024     & $<1$ MB \\
+    N15B.csv & 15 & 32,768    & 5 MB \\
+    N20A.csv & 20 & 1,048,576 & 20 MB \\
+    N22A.csv & 22 & 4,194,304 & 88 MB \\
+    N25A.csv & 25 & 33,554,432 & 800 MB \\
+    \bottomrule
+\end{longtable}
+
+\subsubsection{Excel del profesor (DatosPruebas2026\_1.xlsx)}
+Archivo de entrada/salida principal con 5 hojas de datos y 249 casos totales.
+
+\begin{longtable}{lrr}
+    \toprule
+    Hoja & Casos & Estado inicial \\
+    \midrule
+    \endhead
+    10A-Elementos & 49 & 1000000000 (10 bits) \\
+    15B-Elementos & 50 & 100000000000000 (15 bits) \\
+    20A-Elementos & 50 & 10000000000000000000 (20 bits) \\
+    22A-Elementos & 50 & 1000000000000000000000 (22 bits) \\
+    25A-Elementos & 50 & 1000000000000000000000000 (25 bits) \\
+    \bottomrule
+\end{longtable}
+
+\textbf{Mapeo de columnas de resultados:}
+\begin{longtable}{ccccc}
+    \toprule
+    k & \multicolumn{2}{c}{QNodes (referencia)} & \multicolumn{2}{c}{Geometric (nuestro)} \\
+    \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+      & Columnas & Contenido & Columnas & Contenido \\
+    \midrule
+    \endhead
+    2 & D, E, F & Partición, Pérdida, Tiempo & G, H, I & Partición, Pérdida, Tiempo \\
+    3 & J, K, L & Partición, Pérdida, Tiempo & M, N, O & Partición, Pérdida, Tiempo \\
+    4 & P, Q, R & Partición, Pérdida, Tiempo & S, T, U & Partición, Pérdida, Tiempo \\
+    5 & V, W, X & Partición, Pérdida, Tiempo & Y, Z, AA & Partición, Pérdida, Tiempo \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Capa de Utilidades}
+
+\subsubsection{Manager (manager.py)}
+Gestiona el sistema de N nodos. Recibe el \texttt{estado\_inicial} en binario y resuelve rutas a los archivos de muestra en \texttt{GeoMIP/data/samples/}.
+
+\subsection{Capa de Algoritmo}
+
+\subsubsection{KPartitionGeometricSIA (geometric\_k.py)}
+Componente central del sistema. Implementa el algoritmo k-MIP geométrico.
+
+\textbf{Flujo interno (según código):}
+\begin{enumerate}
+    \item \texttt{aplicar\_estrategia(condición, alcance, mecanismo, tpm)}\; prepara el subsistema vía \texttt{sia\_preparar\_subsistema}.
+    \item \texttt{_construir\_tabla()}\; construye la tabla de costos \texttt{tabla\_transiciones} mediante recorrido BFS por niveles.
+    \item \texttt{_candidatos\_geometricos(k)}\; genera candidatos por heurísticas basadas en los costos \texttt{T}:
+    \begin{itemize}
+        \item caso exacto si \texttt{n\_vars * k <= 20}
+        \item caso greedy (cuantiles/rotaciones) si no.
+    \end{itemize}
+    \item \texttt{_evaluar\_candidato(grupos)}\; calcula la EMD real usando:
+    \begin{itemize}
+        \item partición por separación presente/futuro usando \texttt{n\_pres}
+        \item producto tensorial con \texttt{np.kron} cuando hay múltiples distribuciones.
+    \end{itemize}
+    \item Selecciona el candidato con menor pérdida.
+\end{enumerate}
+
+\subsubsection{GeometricSIA (geometric.py)}
+Clase base para bipartición.
+
+\subsection{Capa de Orquestación}
+
+\subsubsection{Orquestación Excel (src/main.py)}
+Orquestador principal. Coordina la lectura del Excel, preparación de parámetros (alcance/mecanismo), ejecución del algoritmo con aislamiento por proceso y escritura de resultados.
+
+\textbf{Características clave (implementación Method2):}
+\begin{itemize}
+    \item Itera los casos del Excel.
+    \item Para cada caso, ejecuta la estrategia dentro de un \texttt{multiprocessing.Process}.
+    \item Convierte cadenas de letras de \texttt{alcance} y \texttt{mecanismo} a binario mediante \texttt{convertir\_a\_binario}.
+    \item Aplica \texttt{join(timeout=...)} y, si excede el límite, termina el proceso con \texttt{terminate()}.
+    \item Carga la TPM desde \texttt{GeoMIP/data/samples/} usando las rutas resueltas por \texttt{Manager}.
+\end{itemize}
+
+\subsubsection{exec\_geometric\_k.py (ejecución por sistemas)}
+Alternativa de ejecución que corre el algoritmo sobre los sistemas muestreados (N=10,15,20,22) con timeout por sistema usando multiprocessing.
+
+\subsubsection{generar\_tpms.py}
+Script auxiliar para generar los archivos TPM faltantes en \texttt{GeoMIP/data/samples/}.
+
+\subsubsection{benchmark\_mejorado.py / benchmark.py}
+Calcula métricas comparando el algoritmo geométrico contra PyPhi/QNodes (referencia), incluyendo acierto exacto, error relativo en $\Phi$, distancia de Jaccard y speedup.
+
+% ─────────────────────────── 4. FLUJO DE DATOS ───────────────────────────
+\section{Flujo de Datos}
+
+\subsection{Conversión letras → binario}
+Las cadenas del Excel contienen nodos como letras (ej. \texttt{ACEGI}). Antes de invocar el algoritmo se convierten a binario de longitud N.
+
+\subsection{Construcción de la Tabla T}
+La tabla de costos \texttt{tabla\_transiciones} se construye por BFS nivel a nivel a partir del estado inicial hasta el estado final. El factor de decrecimiento se implementa como $2^{-d_H}$ y se acumulan costos sobre caminos vecinos.
+
+\subsection{Evaluación de candidatos (EMD)}
+Para cada candidato de k-partición:
+\begin{enumerate}
+    \item Se separan índices de variables en presentes y futuros (según \texttt{n\_pres}).
+    \item Se construye la distribución marginal por grupo usando \texttt{bipartir(...)}.
+    \item Si hay más de una distribución parcial, se combina con producto tensorial (\texttt{np.kron}).
+    \item Se calcula EMD (\texttt{emd\_efecto}) contra la distribución marginal del subsistema completo.
+\end{enumerate}
+
+% ─────────────────────────── 5. DECISIONES DE DISEÑO ───────────────────────────
+\section{Decisiones de Diseño}
+
+\subsection{Reducción de candidatos para k=2}
+La generación ingenua de candidatos crece rápidamente con el tamaño del sistema. El enfoque documentado usa heurísticas basadas en la tabla de costos \texttt{T} del método geométrico para limitar la cantidad de candidatos evaluados.
+
+\subsection{Timeout por proceso}
+Casos pesados se ejecutan en procesos hijos con \texttt{join(timeout=...)} y terminación forzada si exceden el límite.
+
+\subsection{Separación presente/futuro por \texttt{n\_pres}}
+La evaluación de candidatos depende de distinguir índices de presentes vs futuros usando el umbral \texttt{n\_pres}; sin esta separación se producirían errores de forma al construir distribuciones.
+
+\subsection{Estado inicial completo}
+El \texttt{Manager} recibe el estado inicial del sistema completo; la proyección al subsistema activo se realiza internamente al preparar el modelo.
+
+% ─────────────────────────── 6. DEPENDENCIAS ───────────────────────────
+\section{Dependencias y Entorno}
+
+\subsection{Dependencias Python}
+\begin{longtable}{lll}
+    \toprule
+    Paquete & Versión mínima & Uso \\
+    \midrule
+    \endhead
+    numpy   & 1.24 & Operaciones matriciales, TPM, EMD \\
+    pandas   & 2.x & Lectura de Excel y benchmark \\
+    openpyxl & 3.1 & Lectura/escritura de Excel \\
+    pyinstrument & 4.x & Profiling (solo en desarrollo) \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Estructura de directorios (relevante)}
+\begin{lstlisting}[language=bash, caption={Estructura del repositorio}]
+proyecto-analisis-kpartitions/
+├── GeoMIP/
+│   ├── data/samples/                     # Archivos TPM (NxxA.csv)
+│   └── src/Method2_Dynamic_Programming_Reformulation/
+│       ├── src/main.py                   # Orquestación Excel (timeout)
+│       ├── exec_geometric_k.py          # Ejecución por sistemas con multiprocessing
+│       ├── benchmark.py / benchmark_mejorado.py
+│       ├── controllers/strategies/
+│       │   ├── manager.py
+│       │   ├── geometric_k.py          # CORE
+│       │   ├── geometric.py
+│       │   └── q_nodes.py
+│       └── generar_tpms.py
+└── DocsNuevos/
+    └── DatosPruebas2026_1.xlsx
+\end{lstlisting}
+
+\end{document}
+
