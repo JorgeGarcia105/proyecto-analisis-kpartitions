@@ -55,4 +55,5 @@ dist/
 build/
 
 .log
-QNodes/src/.samples/*
+QNodes/src/.samples/*.logs/
+.vs/
