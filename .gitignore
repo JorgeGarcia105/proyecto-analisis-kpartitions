@@ -54,5 +54,13 @@ htmlcov/
 dist/
 build/
 
-.log
-QNodes/src/.samples/*
+# Datasets
+GeoMIP/data/samples/
+
+# Logs
+.logs/
+
+review/
+profiling/
+*.html
+.logs/

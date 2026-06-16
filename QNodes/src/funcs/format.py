@@ -1,4 +1,5 @@
 import numpy as np
+from typing import List, Tuple
 from src.funcs.iit import ABECEDARY, LOWER_ABECEDARY
 from src.constants.base import BASE_TWO, COLON_DELIM, VOID_STR
 
@@ -79,3 +80,24 @@ def fmt_parte_q(
     width = max(len(str_purv), len(str_mech)) + 2
 
     return f"⎛{str_purv:^{width}}⎞", f"⎝{str_mech:^{width}}⎠"
+
+
+def fmt_kparticion_q(
+    partes: List[List[Tuple[int, int]]],
+    a_ordenar: bool = True,
+) -> str:
+    """
+    Formatea una k-particion (k >= 2) como tabla de dos filas.
+    Cada parte es una lista de (tiempo, nodo) donde tiempo=1 es futuro
+    (mayuscula) y tiempo=0 es presente (minuscula).
+
+    Ejemplo para k=3:
+        ⎛ A,C ⎞⎛ B ⎞⎛ D,E ⎞
+        ⎝ a,c ⎠⎝ b ⎠⎝ d,e ⎠
+    """
+    tops, bottoms = [], []
+    for parte in partes:
+        top, bottom = fmt_parte_q(list(parte), a_ordenar)
+        tops.append(top)
+        bottoms.append(bottom)
+    return "".join(tops) + "\n" + "".join(bottoms) + "\n"
